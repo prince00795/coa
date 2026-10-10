@@ -1,0 +1,6 @@
+.DS_Store
+sim/riscv_sim
+sim/interactive_sim
+sim/dump.vcd
+__pycache__/
+*.pyc

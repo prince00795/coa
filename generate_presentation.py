@@ -1,0 +1,1419 @@
+#!/usr/bin/env python3
+"""
+Generates:
+1. presentation.html (Widescreen 16:9 HTML presentation with ultra-premium styling)
+2. RISCV_Single_Cycle_Processor_Presentation.pdf (via Chrome Headless export)
+3. RISCV_Single_Cycle_Processor_Presentation.pptx (via python-pptx)
+"""
+
+import os
+import subprocess
+from pptx import Presentation
+from pptx.util import Inches, Pt
+from pptx.dml.color import RGBColor
+from pptx.enum.text import PP_ALIGN
+from pptx.enum.shapes import MSO_SHAPE
+
+def build_html_presentation():
+    html_content = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>32-Bit RISC-V Single-Cycle Processor Presentation</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+  @page {
+    size: 16in 9in;
+    margin: 0;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: #0b0f19;
+    color: #f1f5f9;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .slide {
+    width: 16in;
+    height: 9in;
+    page-break-after: always;
+    page-break-inside: avoid;
+    position: relative;
+    padding: 0.65in 0.85in 0.5in 0.85in;
+    background: radial-gradient(circle at 15% 15%, #172554 0%, #0b0f19 55%, #030712 100%);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .slide::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 5px;
+    background: linear-gradient(90deg, #38bdf8, #818cf8, #c084fc, #34d399);
+  }
+
+  /* Footer */
+  .slide-footer {
+    margin-top: auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 0.2in;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 13px;
+    color: #64748b;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .slide-footer .tag {
+    color: #38bdf8;
+    font-weight: 600;
+  }
+
+  /* Headers */
+  .header-group {
+    margin-bottom: 0.35in;
+  }
+
+  .category-pill {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 9999px;
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    color: #38bdf8;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  h1.slide-title {
+    font-size: 38px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: #ffffff;
+    line-height: 1.15;
+  }
+
+  h1.slide-title span {
+    background: linear-gradient(90deg, #38bdf8, #818cf8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .slide-subtitle {
+    font-size: 17px;
+    color: #94a3b8;
+    margin-top: 6px;
+    font-weight: 400;
+  }
+
+  /* Grid Layouts */
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.35in;
+    flex: 1;
+  }
+
+  .grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0.25in;
+    flex: 1;
+  }
+
+  .grid-4 {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.22in;
+    flex: 1;
+  }
+
+  /* Cards */
+  .card {
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    padding: 0.25in;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  }
+
+  .card-highlight {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+  }
+
+  .card-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #f8fafc;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .card-title .icon {
+    font-size: 22px;
+  }
+
+  .card p, .card li {
+    font-size: 15px;
+    color: #cbd5e1;
+    line-height: 1.55;
+  }
+
+  ul.clean-list {
+    list-style: none;
+  }
+
+  ul.clean-list li {
+    position: relative;
+    padding-left: 22px;
+    margin-bottom: 10px;
+  }
+
+  ul.clean-list li::before {
+    content: '✦';
+    position: absolute;
+    left: 0;
+    color: #38bdf8;
+    font-size: 13px;
+  }
+
+  /* Code Block */
+  .code-block {
+    background: #030712;
+    border: 1px solid #1e293b;
+    border-radius: 10px;
+    padding: 14px 18px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.45;
+    color: #e2e8f0;
+    overflow-x: auto;
+    flex: 1;
+  }
+
+  .kw { color: #f43f5e; font-weight: 600; }
+  .dt { color: #38bdf8; }
+  .num { color: #fbbf24; }
+  .str { color: #34d399; }
+  .cm { color: #64748b; font-style: italic; }
+  .fn { color: #a855f7; font-weight: 600; }
+
+  /* Tables */
+  table.custom-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    margin-top: 6px;
+  }
+
+  table.custom-table th {
+    background: rgba(30, 41, 59, 0.9);
+    color: #38bdf8;
+    text-align: left;
+    padding: 10px 14px;
+    font-weight: 700;
+    border-bottom: 2px solid rgba(56, 189, 248, 0.3);
+  }
+
+  table.custom-table td {
+    padding: 9px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    color: #cbd5e1;
+  }
+
+  table.custom-table tr:nth-child(even) td {
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .badge-cyan { background: rgba(56, 189, 248, 0.2); color: #38bdf8; }
+  .badge-green { background: rgba(52, 211, 153, 0.2); color: #34d399; }
+  .badge-purple { background: rgba(192, 132, 252, 0.2); color: #c084fc; }
+  .badge-amber { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
+
+  /* Flow Steps */
+  .step-flow {
+    display: flex;
+    gap: 12px;
+    align-items: stretch;
+    flex: 1;
+  }
+
+  .step-card {
+    flex: 1;
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  .step-card .step-num {
+    font-size: 12px;
+    font-weight: 800;
+    color: #38bdf8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+  }
+
+  .step-card .step-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 10px;
+  }
+
+  .step-card p {
+    font-size: 13px;
+    color: #94a3b8;
+    line-height: 1.45;
+  }
+
+  /* Title Slide Special */
+  .title-slide {
+    justify-content: center;
+    align-items: flex-start;
+    padding: 1.2in;
+    background: radial-gradient(circle at 75% 30%, #1e3a8a 0%, #0f172a 50%, #030712 100%);
+  }
+
+  .title-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 16px;
+    background: rgba(56, 189, 248, 0.15);
+    border: 1px solid rgba(56, 189, 248, 0.4);
+    border-radius: 9999px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #38bdf8;
+    letter-spacing: 0.05em;
+    margin-bottom: 24px;
+  }
+
+  .main-heading {
+    font-size: 56px;
+    font-weight: 800;
+    color: #ffffff;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    margin-bottom: 18px;
+    max-width: 13in;
+  }
+
+  .main-heading span {
+    background: linear-gradient(90deg, #38bdf8, #818cf8, #c084fc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .subtitle-text {
+    font-size: 22px;
+    color: #94a3b8;
+    margin-bottom: 40px;
+    max-width: 10in;
+    line-height: 1.45;
+  }
+
+  .author-box {
+    display: flex;
+    gap: 40px;
+    padding-top: 30px;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .author-item .label {
+    font-size: 12px;
+    color: #64748b;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+  }
+
+  .author-item .value {
+    font-size: 18px;
+    color: #f1f5f9;
+    font-weight: 600;
+    margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+
+  <!-- ==================== SLIDE 1: TITLE SLIDE ==================== -->
+  <div class="slide title-slide">
+    <div class="title-badge">⚙️ RISC-V OPEN ARCHITECTURE PROJECT</div>
+    <h1 class="main-heading">Design & Verification of a <span>32-Bit RISC-V Single-Cycle Processor</span> (RV32I)</h1>
+    <p class="subtitle-text">A complete hardware implementation in Verilog HDL featuring modular datapath design, hierarchical control decoding, and cycle-accurate verification.</p>
+    
+    <div class="author-box">
+      <div class="author-item">
+        <div class="label">Presenter</div>
+        <div class="value">Prince Raj</div>
+      </div>
+      <div class="author-item">
+        <div class="label">Hardware Language</div>
+        <div class="value">Verilog HDL (IEEE 1364)</div>
+      </div>
+      <div class="author-item">
+        <div class="label">Simulation Tool</div>
+        <div class="value">Icarus Verilog 13.0 & GTKWave</div>
+      </div>
+      <div class="author-item">
+        <div class="label">Architecture</div>
+        <div class="value">RV32I Base Integer ISA</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== SLIDE 2: PROJECT OBJECTIVES ==================== -->
+  <div class="slide">
+    <div class="header-group">
+      <div class="category-pill">Executive Summary</div>
+      <h1 class="slide-title">Project Objectives & <span>Architecture Overview</span></h1>
+      <p class="slide-subtitle">Bridging theoretical computer architecture with synthesizable hardware implementation</p>
+    </div>
+
+    <div class="grid-3">
+      <div class="card">
+        <div class="card-title"><span class="icon">🎯</span> Core Goals</div>
+        <ul class="clean-list">
+          <li>Implement a fully functional 32-bit single-cycle processor compliant with RISC-V RV32I specification.</li>
+          <li>Design modular hardware blocks: PC, Memory, Register File, ALU, and Control Unit.</li>
+          <li>Support R-type, I-type, Load, Store, and Branch instructions.</li>
+        </ul>
+      </div>
+
+      <div class="card card-highlight">
+        <div class="card-title"><span class="icon">⚡</span> Why Single-Cycle?</div>
+        <ul class="clean-list">
+          <li><strong>CPI = 1</strong>: Exactly one instruction completes per clock period.</li>
+          <li><strong>Zero Hazard Complications</strong>: No data forwarding or branch prediction stalls required.</li>
+          <li><strong>Educational Foundation</strong>: Provides the transparent baseline for pipelining and superscalar scaling.</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span class="icon">🏆</span> Deliverables</div>
+        <ul class="clean-list">
+          <li>8 synthesizable Verilog modules in <code>src/</code>.</li>
+          <li>Top-level datapath integration (<code>riscv_core.v</code>).</li>
+          <li>Comprehensive 11-instruction self-checking testbench.</li>
+          <li>Interactive terminal simulation CLI (<code>run_interactive.py</code>).</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <span>RISC-V RV32I Single-Cycle Processor</span>
+      <span class="tag">Slide 02</span>
+    </div>
+  </div>
+
+  <!-- ==================== SLIDE 3: RISC-V ISA FORMATS ==================== -->
+  <div class="slide">
+    <div class="header-group">
+      <div class="category-pill">Instruction Set Architecture</div>
+      <h1 class="slide-title">RISC-V RV32I <span>Instruction Formats</span></h1>
+      <p class="slide-subtitle">Regular, orthogonal 32-bit instruction layouts designed for efficient hardware decoding</p>
+    </div>
+
+    <table class="custom-table" style="margin-bottom: 0.25in;">
+      <thead>
+        <tr>
+          <th>Format</th>
+          <th>Bit [31:25]</th>
+          <th>Bit [24:20]</th>
+          <th>Bit [19:15]</th>
+          <th>Bit [14:12]</th>
+          <th>Bit [11:7]</th>
+          <th>Bit [6:0]</th>
+          <th>Typical Operations</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="badge badge-cyan">R-Type</span></td>
+          <td>funct7 (7b)</td>
+          <td>rs2 (5b)</td>
+          <td>rs1 (5b)</td>
+          <td>funct3 (3b)</td>
+          <td>rd (5b)</td>
+          <td>opcode (7b)</td>
+          <td><code>add, sub, and, or, xor, slt</code></td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-green">I-Type</span></td>
+          <td colspan="2">immediate [11:0] (12b)</td>
+          <td>rs1 (5b)</td>
+          <td>funct3 (3b)</td>
+          <td>rd (5b)</td>
+          <td>opcode (7b)</td>
+          <td><code>addi, andi, ori, lw, jalr</code></td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-purple">S-Type</span></td>
+          <td>imm[11:5] (7b)</td>
+          <td>rs2 (5b)</td>
+          <td>rs1 (5b)</td>
+          <td>funct3 (3b)</td>
+          <td>imm[4:0] (5b)</td>
+          <td>opcode (7b)</td>
+          <td><code>sw, sh, sb</code></td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-amber">B-Type</span></td>
+          <td>imm[12|10:5]</td>
+          <td>rs2 (5b)</td>
+          <td>rs1 (5b)</td>
+          <td>funct3 (3b)</td>
+          <td>imm[4:1|11]</td>
+          <td>opcode (7b)</td>
+          <td><code>beq, bne, blt, bge</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Key Architectural Features</div>
+        <p>• <strong>Fixed 32-Bit Instruction Width</strong>: Simplifies instruction fetch logic.<br>
+           • <strong>32 General Purpose Registers</strong>: <code>x0</code> to <code>x31</code>, each 32 bits wide.<br>
+           • <strong>Hardwired Zero</strong>: <code>x0</code> is physically tied to 0. Writing to it is ignored.</p>
+      </div>
+      <div class="card">
+        <div class="card-title">Hardware Decoding Advantages</div>
+        <p>• <code>rs1</code>, <code>rs2</code>, and <code>rd</code> always occupy the exact same bit positions across all formats.<br>
+           • Opcode is always located in <code>bits [6:0]</code>, enabling instantaneous control unit decoding.</p>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <span>RISC-V RV32I Single-Cycle Processor</span>
+      <span class="tag">Slide 03</span>
+    </div>
+  </div>
+
+  <!-- ==================== SLIDE 4: THE 5-STAGE DATAPATH ==================== -->
+  <div class="slide">
+    <div class="header-group">
+      <div class="category-pill">Hardware Organization</div>
+      <h1 class="slide-title">The 5 Classic Stages of the <span>Single-Cycle Datapath</span></h1>
+      <p class="slide-subtitle">All 5 phases execute concurrently in a continuous combinational flow during one clock period</p>
+    </div>
+
+    <div class="step-flow">
+      <div class="step-card">
+        <div class="step-num">Stage 1</div>
+        <div class="step-title">Fetch (IF)</div>
+        <p>• PC outputs current instruction address.<br>• Instruction Memory retrieves 32-bit machine word.<br>• Adder computes default <code>PC + 4</code>.</p>
+      </div>
+
+      <div class="step-card">
+        <div class="step-num">Stage 2</div>
+        <div class="step-title">Decode (ID)</div>
+        <p>• Control Unit decodes <code>opcode[6:0]</code>.<br>• Register File reads <code>rs1</code> and <code>rs2</code> data.<br>• Immediate Gen reconstructs 32-bit sign-extended constant.</p>
+      </div>
+
+      <div class="step-card">
+        <div class="step-num">Stage 3</div>
+        <div class="step-title">Execute (EX)</div>
+        <p>• ALU MUX selects Register 2 or Immediate.<br>• ALU performs arithmetic/logic computation.<br>• ALU calculates Zero flag and branch target (<code>PC + imm</code>).</p>
+      </div>
+
+      <div class="step-card">
+        <div class="step-num">Stage 4</div>
+        <div class="step-title">Memory (MEM)</div>
+        <p>• For <code>lw</code>: reads 32-bit word from Data RAM at ALU address.<br>• For <code>sw</code>: writes <code>rs2</code> data into RAM.<br>• Bypassed for R-type/I-type math.</p>
+      </div>
+
+      <div class="step-card">
+        <div class="step-num">Stage 5</div>
+        <div class="step-title">Write-Back (WB)</div>
+        <p>• Multiplexer selects Write-back source:<br>  - ALU result (Math)<br>  - Memory data (Load)<br>  - PC+4 (Jump link)<br>• Writes into register <code>rd</code>.</p>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <span>RISC-V RV32I Single-Cycle Processor</span>
+      <span class="tag">Slide 04</span>
+    </div>
+  </div>
+
+  <!-- ==================== SLIDE 5: MODULE 1 & 2 (PC & IMEM) ==================== -->
+  <div class="slide">
+    <div class="header-group">
+      <div class="category-pill">Sub-Module Design</div>
+      <h1 class="slide-title">Modules 1 & 2: <span>Program Counter & Instruction Memory</span></h1>
+      <p class="slide-subtitle">Instruction sequencing and memory-fetch hardware</p>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Program Counter (<code>pc.v</code>)</div>
+        <p style="margin-bottom: 10px;">The PC is a 32-bit sequential register. On each clock edge, it latches the next instruction address (<code>pc_next</code>).</p>
+        <div class="code-block">
+<span class="kw">always</span> @(<span class="kw">posedge</span> clk <span class="kw">or posedge</span> rst) <span class="kw">begin</span>
+    <span class="kw">if</span> (rst) <span class="kw">begin</span>
+        pc &lt;= <span class="num">32'h0000_0000</span>; <span class="cm">// Reset to 0</span>
+    <span class="kw">end else begin</span>
+        pc &lt;= pc_next;       <span class="cm">// Latch PC+4 or Branch</span>
+    <span class="kw">end</span>
+<span class="kw">end</span>
+        </div>
+        <p style="margin-top: 8px; font-size: 13px; color: #94a3b8;">• <strong>Non-blocking (<code>&lt;=</code>)</strong> avoids simulation race conditions.<br>• <strong>Asynchronous reset</strong> guarantees immediate initialization.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Instruction Memory (<code>instruction_mem.v</code>)</div>
+        <p style="margin-bottom: 10px;">Word-indexed asynchronous ROM holding up to 64 instructions (256 bytes).</p>
+        <div class="code-block">
+<span class="dt">reg</span> [<span class="num">31</span>:<span class="num">0</span>] memory [<span class="num">0</span>:<span class="num">63</span>];
+
+<span class="cm">// Asynchronous (instantaneous) read:</span>
+<span class="kw">assign</span> instr = memory[pc[<span class="num">7</span>:<span class="num">2</span>]];
+
+<span class="kw">initial begin</span>
+    <span class="cm">// Supports dynamic hex file loading:</span>
+    <span class="kw">if</span> (PROGRAM_FILE != <span class="str">""</span>)
+        $readmemh(PROGRAM_FILE, memory);
+<span class="kw">end</span>
+        </div>
+        <p style="margin-top: 8px; font-size: 13px; color: #94a3b8;">• <strong>Why <code>pc[7:2]</code>?</strong> Instructions are 4-byte aligned (0, 4, 8, 12...). Slicing bits [7:2] divides byte address by 4 to get word index.</p>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <span>RISC-V RV32I Single-Cycle Processor</span>
+      <span class="tag">Slide 05</span>
+    </div>
+  </div>
+
+  <!-- ==================== SLIDE 6: MODULE 3 (REGISTER FILE) ==================== -->
+  <div class="slide">
+    <div class="header-group">
+      <div class="category-pill">Sub-Module Design</div>
+      <h1 class="slide-title">Module 3: <span>32x32-Bit Register File (reg_file.v)</span></h1>
+      <p class="slide-subtitle">High-speed dual-read, single-write internal register storage</p>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Verilog Implementation</div>
+        <div class="code-block">
+<span class="dt">reg</span> [<span class="num">31</span>:<span class="num">0</span>] registers [<span class="num">0</span>:<span class="num">31</span>];
+
+<span class="cm">// Dual Asynchronous Reads (x0 is hardwired to 0):</span>
+<span class="kw">assign</span> rd_data1 = (rs1 == <span class="num">5'd0</span>) ? <span class="num">32'b0</span> : registers[rs1];
+<span class="kw">assign</span> rd_data2 = (rs2 == <span class="num">5'd0</span>) ? <span class="num">32'b0</span> : registers[rs2];
+
+<span class="cm">// Synchronous Write on posedge clk:</span>
+<span class="kw">always</span> @(<span class="kw">posedge</span> clk <span class="kw">or posedge</span> rst) <span class="kw">begin</span>
+    <span class="kw">if</span> (rst) <span class="kw">begin</span>
+        <span class="kw">for</span> (i = <span class="num">0</span>; i &lt; <span class="num">32</span>; i = i + <span class="num">1</span>) registers[i] &lt;= <span class="num">32'b0</span>;
+    <span class="kw">end else if</span> (reg_write && (rd != <span class="num">5'd0</span>)) <span class="kw">begin</span>
+        registers[rd] &lt;= wr_data;
+    <span class="kw">end</span>
+<span class="kw">end</span>
+        </div>
+      </div>
+
+      <div class="card card-highlight">
+        <div class="card-title">Critical Architectural Rules</div>
+        <ul class="clean-list">
+          <li><strong>2 Simultaneous Read Ports</strong>: Reads operands for <code>rs1</code> and <code>rs2</code> combinationally in the Decode stage.</li>
+          <li><strong>1 Synchronous Write Port</strong>: Updates destination register <code>rd</code> only on the rising clock edge when <code>reg_write == 1</code>.</li>
+          <li><strong>Hardwired Register x0</strong>:
+            <br>• Reading <code>x0</code> always outputs <code>32'h00000000</code>.
+            <br>• Condition <code>(rd != 5'd0)</code> ensures writes to <code>x0</code> are silently dropped.
+            <br>• Enables compact RISC-V pseudo-instructions like <code>nop</code> (<code>addi x0, x0, 0</code>).</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <span>RISC-V RV32I Single-Cycle Processor</span>
+      <span class="tag">Slide 06</span>
+    </div>
+  </div>
+
+  <!-- ==================== SLIDE 7: MODULE 4 (IMMEDIATE GENERATOR) ==================== -->
+  <div class="slide">
+    <div class="header-group">
+      <div class="category-pill">Sub-Module Design</div>
+      <h1 class="slide-title">Module 4: <span>Immediate Generator (imm_gen.v)</span></h1>
+      <p class="slide-subtitle">Assembling scrambled immediate fields and sign-extending to 32 bits</p>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Why Immediate Generation is Needed</div>
+        <p style="margin-bottom: 12px;">RISC-V intentionally scrambles immediate bit fields across instructions to keep register source and destination fields (<code>rs1</code>, <code>rs2</code>, <code>rd</code>) in fixed positions.</p>
+        <p>The Immediate Generator decodes the <code>opcode</code> and reconstructs the full 32-bit two's complement sign-extended number.</p>
+        
+        <div style="margin-top: 15px; padding: 12px; background: rgba(56, 189, 248, 0.08); border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.2);">
+          <strong style="color: #38bdf8;">Sign Extension Magic:</strong><br>
+          <code>{{20{instr[31]}}, instr[31:20]}</code><br>
+          <span style="font-size: 13px; color: #94a3b8;">Replicates bit 31 (sign bit) 20 times to expand 12-bit signed numbers to 32 bits.</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Format Decoding Table</div>
+        <div class="code-block">
+<span class="kw">case</span> (opcode)
+  <span class="cm">// I-type (addi, lw): bits 31:20</span>
+  <span class="num">7'b0010011</span>, <span class="num">7'b0000011</span>:
+    imm_out = {{<span class="num">20</span>{instr[<span class="num">31</span>]}}, instr[<span class="num">31</span>:<span class="num">20</span>]};
+
+  <span class="cm">// S-type (sw): split 31:25 and 11:7</span>
+  <span class="num">7'b0100011</span>:
+    imm_out = {{<span class="num">20</span>{instr[<span class="num">31</span>]}}, instr[<span class="num">31</span>:<span class="num">25</span>], instr[<span class="num">11</span>:<span class="num">7</span>]};
+
+  <span class="cm">// B-type (beq): bit 0 is hardwired to 0</span>
+  <span class="num">7'b1100011</span>:
+    imm_out = {{<span class="num">20</span>{instr[<span class="num">31</span>]}}, instr[<span class="num">7</span>], instr[<span class="num">30</span>:<span class="num">25</span>], instr[<span class="num">11</span>:<span class="num">8</span>], <span class="num">1'b0</span>};
+
+  <span class="cm">// J-type (jal): 20-bit offset, bit 0 is 0</span>
+  <span class="num">7'b1101111</span>:
+    imm_out = {{<span class="num">12</span>{instr[<span class="num">31</span>]}}, instr[<span class="num">19</span>:<span class="num">12</span>], instr[<span class="num">20</span>], instr[<span class="num">30</span>:<span class="num">21</span>], <span class="num">1'b0</span>};
+<span class="kw">endcase</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <span>RISC-V RV32I Single-Cycle Processor</span>
+      <span class="tag">Slide 07</span>
+    </div>
+  </div>
+
+  <!-- ==================== SLIDE 8: MODULE 5 (ALU & ALU CONTROL) ==================== -->
+  <div class="slide">
+    <div class="header-group">
+      <div class="category-pill">Sub-Module Design</div>
+      <h1 class="slide-title">Module 5: <span>ALU & Hierarchical ALU Control (alu.v)</span></h1>
+      <p class="slide-subtitle">High-speed arithmetic execution and multi-level control decoding</p>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">ALU Core (<code>alu.v</code>)</div>
+        <p>Takes two 32-bit operands (<code>a</code>, <code>b</code>) and performs the selected operation:</p>
+        <table class="custom-table" style="margin-top: 10px;">
+          <thead>
+            <tr><th>Control</th><th>Function</th><th>Verilog Expression</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>4'b0000</code></td><td>ADD</td><td><code>result = a + b;</code></td></tr>
+            <tr><td><code>4'b0001</code></td><td>SUB</td><td><code>result = a - b;</code></td></tr>
+            <tr><td><code>4'b0010</code></td><td>AND</td><td><code>result = a & b;</code></td></tr>
+            <tr><td><code>4'b0011</code></td><td>OR</td><td><code>result = a | b;</code></td></tr>
+            <tr><td><code>4'b0100</code></td><td>XOR</td><td><code>result = a ^ b;</code></td></tr>
+            <tr><td><code>4'b0101</code></td><td>SLT</td><td><code>result = ($signed(a) &lt; $signed(b)) ? 1 : 0;</code></td></tr>
+          </tbody>
+        </table>
+        <p style="margin-top: 10px; font-size: 13px; color: #38bdf8;"><strong>Zero Flag:</strong> <code>assign zero = (result == 32'b0);</code> (Crucial for branch decisions!)</p>
+      </div>
+
+      <div class="card card-highlight">
+        <div class="card-title">Hierarchical ALU Decoder</div>
+        <p style="margin-bottom: 10px;">Two-level decoding keeps the Main Control Unit fast and modular:</p>
+        <div class="code-block">
+<span class="kw">case</span> (alu_op)
+  <span class="num">2'b00</span>: alu_ctrl = ALU_ADD; <span class="cm">// lw/sw: calculate address</span>
+  <span class="num">2'b01</span>: alu_ctrl = ALU_SUB; <span class="cm">// beq: subtract rs1 - rs2</span>
+  
+  <span class="num">2'b10</span>: <span class="cm">// R-type (checks funct3 and funct7[5])</span>
+    <span class="kw">case</span> (funct3)
+      <span class="num">3'b000</span>: alu_ctrl = funct7_5 ? ALU_SUB : ALU_ADD;
+      <span class="num">3'b111</span>: alu_ctrl = ALU_AND;
+      <span class="num">3'b110</span>: alu_ctrl = ALU_OR;
+      <span class="num">3'b100</span>: alu_ctrl = ALU_XOR;
+    <span class="kw">endcase</span>
+    
+  <span class="num">2'b11</span>: <span class="cm">// I-type arithmetic (addi, andi, etc.)</span>
+    <span class="kw">case</span> (funct3)
+      <span class="num">3'b000</span>: alu_ctrl = ALU_ADD;
+    <span class="kw">endcase</span>
+<span class="kw">endcase</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <span>RISC-V RV32I Single-Cycle Processor</span>
+      <span class="tag">Slide 08</span>
+    </div>
+  </div>
+
+  <!-- ==================== SLIDE 9: MODULE 6 & 7 (CONTROL & DMEM) ==================== -->
+  <div class="slide">
+    <div class="header-group">
+      <div class="category-pill">Sub-Module Design</div>
+      <h1 class="slide-title">Modules 6 & 7: <span>Main Control Unit & Data Memory</span></h1>
+      <p class="slide-subtitle">Central traffic director and data memory access</p>
+    </div>
+
+    <div class="card" style="margin-bottom: 0.25in;">
+      <div class="card-title">Main Control Unit Truth Table (Decodes <code>opcode[6:0]</code>)</div>
+      <table class="custom-table">
+        <thead>
+          <tr>
+            <th>Instruction</th><th>Opcode</th><th>RegWrite</th><th>ALUSrc</th><th>MemRead</th><th>MemWrite</th><th>MemToReg</th><th>Branch</th><th>ALUOp</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>R-Type</strong> (add, sub)</td><td><code>0110011</code></td><td>1</td><td>0 (rs2)</td><td>0</td><td>0</td><td>00 (ALU)</td><td>0</td><td>10 (R-type)</td></tr>
+          <tr><td><strong>I-Type</strong> (addi)</td><td><code>0010011</code></td><td>1</td><td>1 (imm)</td><td>0</td><td>0</td><td>00 (ALU)</td><td>0</td><td>11 (I-type)</td></tr>
+          <tr><td><strong>Load</strong> (lw)</td><td><code>0000011</code></td><td>1</td><td>1 (imm)</td><td>1</td><td>0</td><td>01 (Mem)</td><td>0</td><td>00 (Add)</td></tr>
+          <tr><td><strong>Store</strong> (sw)</td><td><code>0100011</code></td><td>0</td><td>1 (imm)</td><td>0</td><td>1</td><td>XX</td><td>0</td><td>00 (Add)</td></tr>
+          <tr><td><strong>Branch</strong> (beq)</td><td><code>1100011</code></td><td>0</td><td>0 (rs2)</td><td>0</td><td>0</td><td>XX</td><td>1</td><td>01 (Sub)</td></tr>
+          <tr><td><strong>Jump</strong> (jal)</td><td><code>1101111</code></td><td>1</td><td>X</td><td>0</td><td>0</td><td>10 (PC+4)</td><td>0</td><td>XX</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Data Memory (<code>data_mem.v</code>)</div>
+        <p>• 64 words (256 bytes) RAM addressed by <code>addr[7:2]</code>.<br>
+           • <strong>Read</strong>: Combinational on <code>mem_read == 1</code>.<br>
+           • <strong>Write</strong>: Synchronous on <code>posedge clk</code> when <code>mem_write == 1</code>.</p>
+      </div>
+      <div class="card">
+        <div class="card-title">Key Architectural Safety</div>
+        <p>• Default case sets all control lines to 0.<br>
+           • Prevents accidental memory corruption or unintended register overwrites on undefined opcodes.</p>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <span>RISC-V RV32I Single-Cycle Processor</span>
+      <span class="tag">Slide 09</span>
+    </div>
+  </div>
+
+  <!-- ==================== SLIDE 10: TOP CORE INTEGRATION ==================== -->
+  <div class="slide">
+    <div class="header-group">
+      <div class="category-pill">System Integration</div>
+      <h1 class="slide-title">Top Datapath Wiring: <span>riscv_core.v</span></h1>
+      <p class="slide-subtitle">Connecting all 8 modules with multiplexers for unified execution</p>
+    </div>
+
+    <div class="grid-3">
+      <div class="card card-highlight">
+        <div class="card-title">1. Next PC Multiplexer</div>
+        <p style="margin-bottom: 8px;">Calculates whether to branch or step sequentially:</p>
+        <div class="code-block">
+<span class="dt">wire</span> pc_branch_taken = (branch & alu_zero);
+
+<span class="kw">assign</span> pc_next = 
+    (jump)            ? branch_target : 
+    (pc_branch_taken) ? branch_target : 
+                        pc_plus_4;
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">2. ALU Operand B MUX</div>
+        <p style="margin-bottom: 8px;">Selects between Register 2 and Immediate constant:</p>
+        <div class="code-block">
+<span class="kw">assign</span> alu_operand_b = 
+    (alu_src) ? imm_out : rd_data2;
+        </div>
+        <p style="margin-top: 10px; font-size: 13px; color: #94a3b8;">• <code>0</code>: R-type math, BEQ comparison.<br>• <code>1</code>: ADDI, LW/SW offset calculation.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title">3. Write-Back MUX</div>
+        <p style="margin-bottom: 8px;">Selects data source written to register <code>rd</code>:</p>
+        <div class="code-block">
+<span class="kw">case</span> (mem_to_reg)
+  <span class="num">2'b00</span>: reg_wr_data = alu_result;
+  <span class="num">2'b01</span>: reg_wr_data = mem_rd_data;
+  <span class="num">2'b10</span>: reg_wr_data = pc_plus_4;
+<span class="kw">endcase</span>
+        </div>
+        <p style="margin-top: 10px; font-size: 13px; color: #94a3b8;">Routes ALU math, Memory load, or JAL return address.</p>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <span>RISC-V RV32I Single-Cycle Processor</span>
+      <span class="tag">Slide 10</span>
+    </div>
+  </div>
+
+  <!-- ==================== SLIDE 11: INSTRUCTION EXECUTION WALKTHROUGH ==================== -->
+  <div class="slide">
+    <div class="header-group">
+      <div class="category-pill">Execution Walkthrough</div>
+      <h1 class="slide-title">Tracing an Instruction: <span>ADD x3, x1, x2</span></h1>
+      <p class="slide-subtitle">Step-by-step signals when executing <code>0x002081B3</code> with x1=50, x2=30</p>
+    </div>
+
+    <table class="custom-table" style="margin-bottom: 0.25in;">
+      <thead>
+        <tr>
+          <th>Stage</th>
+          <th>Hardware Unit</th>
+          <th>Active Signals & Values</th>
+          <th>Hardware Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="badge badge-cyan">1. Fetch</span></td>
+          <td>PC &amp; IMEM</td>
+          <td><code>PC = 0x00000008</code></td>
+          <td>Instruction memory outputs <code>0x002081B3</code>. <code>PC+4</code> is computed.</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-purple">2. Decode</span></td>
+          <td>Control Unit &amp; RegFile</td>
+          <td><code>opcode=0110011, rs1=1, rs2=2, rd=3</code></td>
+          <td>CU asserts <code>RegWrite=1</code>, <code>ALUSrc=0</code>. RegFile outputs <code>x1=50</code>, <code>x2=30</code>.</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-amber">3. Execute</span></td>
+          <td>ALU &amp; ALU Control</td>
+          <td><code>alu_ctrl=4'b0000, A=50, B=30</code></td>
+          <td>ALU performs addition: <code>50 + 30 = 80</code>. Zero flag = <code>0</code>.</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-green">4. Memory</span></td>
+          <td>Data Memory</td>
+          <td><code>mem_read=0, mem_write=0</code></td>
+          <td>Data memory is idle. ALU result passes directly to write-back MUX.</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-cyan">5. Write-Back</span></td>
+          <td>WB MUX &amp; RegFile</td>
+          <td><code>mem_to_reg=00, wr_data=80</code></td>
+          <td>On rising clock edge, <code>80</code> is permanently written into register <code>x3</code>!</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="card card-highlight">
+      <div class="card-title">Contrast with Load Word (<code>lw x7, 4(x0)</code>)</div>
+      <p>For <code>lw</code>: ALU calculates address <code>0 + 4 = 4</code> $\rightarrow$ Data Memory activates <code>mem_read=1</code> $\rightarrow$ Memory reads data at address 4 ($40$) $\rightarrow$ MUX selects <code>mem_to_reg=01</code> $\rightarrow$ 40 is written to <code>x7</code>. This is the <strong>longest path</strong> in the entire CPU!</p>
+    </div>
+
+    <div class="slide-footer">
+      <span>RISC-V RV32I Single-Cycle Processor</span>
+      <span class="tag">Slide 11</span>
+    </div>
+  </div>
+
+  <!-- ==================== SLIDE 12: VERIFICATION & SIMULATION ==================== -->
+  <div class="slide">
+    <div class="header-group">
+      <div class="category-pill">Testing & Verification</div>
+      <h1 class="slide-title">Hardware Simulation & <span>Self-Checking Verification</span></h1>
+      <p class="slide-subtitle">Automated testbench execution in Icarus Verilog verifying 11 assembly instructions</p>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">11-Instruction Test Program</div>
+        <table class="custom-table">
+          <thead><tr><th>PC</th><th>Instruction</th><th>Result</th></tr></thead>
+          <tbody>
+            <tr><td><code>0x00</code></td><td><code>addi x1, x0, 15</code></td><td><code>x1 = 15</code></td></tr>
+            <tr><td><code>0x04</code></td><td><code>addi x2, x0, 25</code></td><td><code>x2 = 25</code></td></tr>
+            <tr><td><code>0x08</code></td><td><code>add  x3, x1, x2</code></td><td><code>x3 = 40</code></td></tr>
+            <tr><td><code>0x0C</code></td><td><code>sub  x4, x2, x1</code></td><td><code>x4 = 10</code></td></tr>
+            <tr><td><code>0x10</code></td><td><code>and  x5, x1, x2</code></td><td><code>x5 = 9</code></td></tr>
+            <tr><td><code>0x14</code></td><td><code>or   x6, x1, x2</code></td><td><code>x6 = 31</code></td></tr>
+            <tr><td><code>0x18</code></td><td><code>sw   x3, 4(x0)</code></td><td><code>mem[4] = 40</code></td></tr>
+            <tr><td><code>0x1C</code></td><td><code>lw   x7, 4(x0)</code></td><td><code>x7 = 40</code></td></tr>
+            <tr><td><code>0x20</code></td><td><code>beq  x3, x7, 8</code></td><td><span class="badge badge-green">Branch Taken!</span></td></tr>
+            <tr><td><code>0x24</code></td><td><code>addi x8, x0, 99</code></td><td><span class="badge badge-amber">Skipped! (x8=0)</span></td></tr>
+            <tr><td><code>0x28</code></td><td><code>addi x9, x0, 42</code></td><td><code>x9 = 42</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card card-highlight">
+        <div class="card-title">Terminal Simulation Output</div>
+        <div class="code-block">
+$ iverilog -o sim/riscv_sim src/*.v sim/tb_riscv.v
+$ vvp sim/riscv_sim
+
+==========================================================
+              FINAL REGISTER FILE VALUES                  
+==========================================================
+  x0  (zero) = 0  (Expected: 0)
+  x1         = 15 (Expected: 15)
+  x2         = 25 (Expected: 25)
+  x3  (add)  = 40 (Expected: 40)
+  x4  (sub)  = 10 (Expected: 10)
+  x5  (and)  = 9  (Expected: 9)
+  x6  (or)   = 31 (Expected: 31)
+  x7  (lw)   = 40 (Expected: 40)
+  x8 (skip)  = 0  (Expected: 0 - skipped by branch!)
+  x9 (target)= 42 (Expected: 42 - reached via branch!)
+  Data Mem[4]= 40 (Expected: 40 - written by sw)
+==========================================================
+   TEST STATUS: &gt;&gt;&gt; SUCCESS! ALL INSTRUCTIONS VERIFIED &lt;&lt;&lt;
+==========================================================
+        </div>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <span>RISC-V RV32I Single-Cycle Processor</span>
+      <span class="tag">Slide 12</span>
+    </div>
+  </div>
+
+  <!-- ==================== SLIDE 13: INTERACTIVE DEMONSTRATOR ==================== -->
+  <div class="slide">
+    <div class="header-group">
+      <div class="category-pill">Live Demonstration</div>
+      <h1 class="slide-title">Interactive Terminal Demonstrator (<code>run_interactive.py</code>)</h1>
+      <p class="slide-subtitle">Live hardware demonstration utility for professors and presentations</p>
+    </div>
+
+    <div class="grid-3">
+      <div class="card">
+        <div class="card-title"><span class="icon">⌨️</span> 1. User Input</div>
+        <p>Prompts user or professor for:</p>
+        <ul class="clean-list" style="margin-top: 8px;">
+          <li>Operation: <code>ADD, SUB, AND, OR, XOR, SLT</code></li>
+          <li>Operand 1 (loaded into <code>x1</code>)</li>
+          <li>Operand 2 (loaded into <code>x2</code>)</li>
+        </ul>
+        <div style="margin-top: 15px; font-size: 13px; color: #38bdf8;">
+          Example command:<br>
+          <code>python3 run_interactive.py --op XOR --a 12 --b 5</code>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span class="icon">⚙️</span> 2. Dynamic Assembly</div>
+        <p>• Assembles 32-bit binary machine codes on the fly.<br>
+           • Generates <code>sim/instructions.hex</code>.<br>
+           • Displays full bit-slice decomposition:
+             <br>- <code>funct7</code> (31:25)
+             <br>- <code>rs2</code> (24:20), <code>rs1</code> (19:15)
+             <br>- <code>funct3</code> (14:12)
+             <br>- <code>rd</code> (11:7), <code>opcode</code> (6:0)</p>
+      </div>
+
+      <div class="card card-highlight">
+        <div class="card-title"><span class="icon">📊</span> 3. Hardware Telemetry</div>
+        <p>• Runs Icarus Verilog in real time.<br>
+           • Prints cycle-by-cycle internal signals:
+             <br>- ALU inputs and results
+             <br>- Control unit states
+             <br>- Write-back destination
+           • Displays verified register results in hexadecimal and decimal.</p>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <span>RISC-V RV32I Single-Cycle Processor</span>
+      <span class="tag">Slide 13</span>
+    </div>
+  </div>
+
+  <!-- ==================== SLIDE 14: TIMING & PERFORMANCE ==================== -->
+  <div class="slide">
+    <div class="header-group">
+      <div class="category-pill">Performance Analysis</div>
+      <h1 class="slide-title">Critical Path & <span>Timing Analysis</span></h1>
+      <p class="slide-subtitle">Determining the maximum operating frequency of the single-cycle core</p>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Clock Period Formulation</div>
+        <p style="margin-bottom: 12px;">In a single-cycle processor, the clock cycle time ($\tau_{clk}$) is constrained by the <strong>longest delay</strong> among all instructions:</p>
+        <div style="padding: 14px; background: rgba(56, 189, 248, 0.08); border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.3); font-family: 'JetBrains Mono', monospace; font-size: 15px; color: #ffffff;">
+          $\tau_{clk} \ge T_{PC} + T_{IMEM} + T_{REG\_RD} + T_{ALU} + T_{DMEM} + T_{MUX} + T_{SETUP}$
+        </div>
+        <p style="margin-top: 14px;"><strong>Why Load Word (<code>lw</code>) sets the clock speed:</strong><br>
+        <code>lw</code> is the ONLY instruction requiring access to both instruction memory AND data memory in the same cycle. Every other instruction (e.g. <code>add</code>) finishes earlier but is forced to wait for the same clock period.</p>
+      </div>
+
+      <div class="card card-highlight">
+        <div class="card-title">Single-Cycle vs Pipelined Comparison</div>
+        <table class="custom-table">
+          <thead><tr><th>Metric</th><th>Single-Cycle</th><th>5-Stage Pipelined</th></tr></thead>
+          <tbody>
+            <tr><td><strong>CPI</strong></td><td>1.0</td><td>~1.1 - 1.3 (stalls)</td></tr>
+            <tr><td><strong>Clock Speed</strong></td><td>Slow (determined by <code>lw</code>)</td><td>Fast (~4-5x higher clock)</td></tr>
+            <tr><td><strong>Hardware Complexity</strong></td><td>Low (no hazard unit)</td><td>High (forwarding, stalls)</td></tr>
+            <tr><td><strong>Throughput</strong></td><td>1 instr / $\tau_{long}$</td><td>~1 instr / $\tau_{short}$</td></tr>
+          </tbody>
+        </table>
+        <p style="margin-top: 10px; font-size: 13px; color: #94a3b8;">Single-cycle is ideal for teaching because dataflow is transparent with zero hidden state hazards.</p>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <span>RISC-V RV32I Single-Cycle Processor</span>
+      <span class="tag">Slide 14</span>
+    </div>
+  </div>
+
+  <!-- ==================== SLIDE 15: PROFESSOR VIVA DEFENSE GUIDE ==================== -->
+  <div class="slide">
+    <div class="header-group">
+      <div class="category-pill">Viva Voce Preparation</div>
+      <h1 class="slide-title">Professor Defense Guide: <span>Top Q&amp;A</span></h1>
+      <p class="slide-subtitle">Exact, authoritative answers to the most common viva questions</p>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <p><strong style="color: #38bdf8;">Q1: Why is register x0 hardwired to 0?</strong><br>
+        <em>Answer:</em> RISC-V eliminates dedicated hardware for operations like <code>nop</code> (implemented as <code>addi x0, x0, 0</code>) and <code>mv rd, rs</code> (implemented as <code>addi rd, rs, 0</code>). Hardwiring <code>x0=0</code> reduces instruction count and silicon area.</p>
+        
+        <p style="margin-top: 12px;"><strong style="color: #38bdf8;">Q2: Why use non-blocking (<code>&lt;=</code>) assignments?</strong><br>
+        <em>Answer:</em> Non-blocking assignments model physical flip-flops that sample their inputs simultaneously on the clock edge, preventing simulation race conditions.</p>
+
+        <p style="margin-top: 12px;"><strong style="color: #38bdf8;">Q3: How does branch decision work?</strong><br>
+        <em>Answer:</em> In the Execute stage, the ALU subtracts <code>rs1 - rs2</code>. If equal, the Zero flag is 1. The AND gate <code>(branch &amp; zero)</code> triggers the MUX to select <code>PC + immediate</code> in the same cycle with zero penalty.</p>
+      </div>
+
+      <div class="card">
+        <p><strong style="color: #38bdf8;">Q4: What is the purpose of ALU Control?</strong><br>
+        <em>Answer:</em> Hierarchical decoding separates the 7-bit opcode decode from the <code>funct3/funct7</code> field decode. This prevents a giant monolithic decoder, reducing combinational gate delay.</p>
+
+        <p style="margin-top: 12px;"><strong style="color: #38bdf8;">Q5: Why is memory addressed as <code>pc[7:2]</code>?</strong><br>
+        <em>Answer:</em> Memory in RISC-V is byte-addressed, but each instruction is 4 bytes (32 bits). Slicing <code>pc[7:2]</code> divides by 4, mapping byte addresses 0, 4, 8, 12... to word slots 0, 1, 2, 3...</p>
+
+        <p style="margin-top: 12px;"><strong style="color: #38bdf8;">Q6: What is the critical path?</strong><br>
+        <em>Answer:</em> The Load Word (<code>lw</code>) instruction. It traverses PC $\rightarrow$ IMEM $\rightarrow$ RegFile Read $\rightarrow$ ALU $\rightarrow$ DMEM $\rightarrow$ WB MUX $\rightarrow$ RegFile Write.</p>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <span>RISC-V RV32I Single-Cycle Processor</span>
+      <span class="tag">Slide 15</span>
+    </div>
+  </div>
+
+  <!-- ==================== SLIDE 16: CONCLUSION ==================== -->
+  <div class="slide">
+    <div class="header-group">
+      <div class="category-pill">Summary & Future Scope</div>
+      <h1 class="slide-title">Conclusion & <span>Future Roadmap</span></h1>
+      <p class="slide-subtitle">Summary of outcomes and architectural roadmap for future research</p>
+    </div>
+
+    <div class="grid-3">
+      <div class="card card-highlight">
+        <div class="card-title">🏆 Accomplishments</div>
+        <ul class="clean-list">
+          <li>Engineered 8 modular, synthesizable Verilog modules conforming to RV32I.</li>
+          <li>Integrated full datapath with multi-source multiplexing and hierarchical control.</li>
+          <li>100% verified against arithmetic, logic, memory, and branch operations.</li>
+          <li>Built live interactive CLI demonstrator for real-time validation.</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🚀 Next Steps: Pipelining</div>
+        <ul class="clean-list">
+          <li>Introduce 4 pipeline register stages: <code>IF/ID</code>, <code>ID/EX</code>, <code>EX/MEM</code>, <code>MEM/WB</code>.</li>
+          <li>Implement Hazard Detection Unit to resolve data and control hazards.</li>
+          <li>Implement Forwarding Unit (ALU-to-ALU bypass) to eliminate stalls.</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-title">⚡ ISA Extensions</div>
+        <ul class="clean-list">
+          <li><strong>RV32M</strong>: Hardware multiplier & divider blocks (<code>mul</code>, <code>div</code>, <code>rem</code>).</li>
+          <li><strong>Memory Hierarchy</strong>: Direct-mapped or 2-way set-associative L1 instruction/data caches.</li>
+          <li><strong>Interrupts & CSRs</strong>: Control and Status Registers for timer interrupts and system calls.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <span>RISC-V RV32I Single-Cycle Processor</span>
+      <span class="tag">Slide 16</span>
+    </div>
+  </div>
+
+</body>
+</html>
+"""
+    with open("presentation.html", "w") as f:
+        f.write(html_content)
+    print("✓ Created presentation.html")
+
+def generate_pdf_via_chrome():
+    chrome_path = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+    cmd = [
+        chrome_path,
+        "--headless",
+        "--disable-gpu",
+        "--print-to-pdf=RISCV_Single_Cycle_Processor_Presentation.pdf",
+        "--no-pdf-header-footer",
+        "presentation.html"
+    ]
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    if res.returncode == 0:
+        print("✓ Created RISCV_Single_Cycle_Processor_Presentation.pdf")
+    else:
+        print(f"Error creating PDF: {res.stderr}")
+
+def generate_pptx():
+    prs = Presentation()
+    prs.slide_width = Inches(13.333)
+    prs.slide_height = Inches(7.5)
+
+    # Blank layout
+    blank_layout = prs.slide_layouts[6]
+
+    BG_DARK = RGBColor(11, 15, 25)
+    CARD_BG = RGBColor(23, 37, 84)
+    TEXT_LIGHT = RGBColor(241, 245, 249)
+    TEXT_MUTED = RGBColor(148, 163, 184)
+    ACCENT_CYAN = RGBColor(56, 189, 248)
+    ACCENT_GREEN = RGBColor(52, 211, 153)
+
+    slides_data = [
+        {
+            "category": "PROJECT TITLE",
+            "title": "Design & Verification of a 32-Bit RISC-V Single-Cycle Processor (RV32I)",
+            "subtitle": "Complete Verilog HDL implementation with hierarchical decoding and cycle-accurate verification",
+            "cards": [
+                ("Presenter", "Prince Raj\nComputer Architecture & Digital System Design"),
+                ("Implementation Details", "• Language: Verilog HDL (IEEE 1364)\n• ISA: RISC-V RV32I Base Integer\n• Simulation: Icarus Verilog 13.0\n• Datapath: 5-Stage Single-Cycle (CPI = 1)")
+            ]
+        },
+        {
+            "category": "EXECUTIVE SUMMARY",
+            "title": "Project Objectives & Architecture Overview",
+            "subtitle": "Bridging theoretical computer architecture with synthesizable hardware implementation",
+            "cards": [
+                ("Core Objectives", "• Implement 32-bit single-cycle processor core in Verilog HDL\n• Support RV32I R-type, I-type, LW, SW, and BEQ instructions\n• Validate design using automated self-checking testbenches\n• Create interactive demonstrator tool for live hardware execution"),
+                ("Why Single-Cycle Architecture?", "• CPI = 1: Every instruction executes in exactly 1 clock cycle\n• Simplicity: No pipeline hazards, stalls, or forwarding units\n• Foundation: Establishes baseline dataflow for multi-cycle and pipelined cores")
+            ]
+        },
+        {
+            "category": "INSTRUCTION SET ARCHITECTURE",
+            "title": "RISC-V RV32I Instruction Formats",
+            "subtitle": "Regular 32-bit instruction layouts designed for efficient hardware decoding",
+            "cards": [
+                ("Format Specifications", "• R-Type: [funct7][rs2][rs1][funct3][rd][opcode] -> add, sub, and, or, slt\n• I-Type: [imm 11:0][rs1][funct3][rd][opcode] -> addi, lw, jalr\n• S-Type: [imm 11:5][rs2][rs1][funct3][imm 4:0][opcode] -> sw\n• B-Type: [imm 12|10:5][rs2][rs1][funct3][imm 4:1|11][opcode] -> beq"),
+                ("Hardware Decoding Highlights", "• rs1, rs2, rd always occupy identical bit positions\n• Opcode is always bits [6:0], enabling immediate control generation\n• 32 registers (x0 to x31) where x0 is hardwired to 0")
+            ]
+        },
+        {
+            "category": "HARDWARE ORGANIZATION",
+            "title": "The 5 Classic Stages of the Single-Cycle Datapath",
+            "subtitle": "All stages execute concurrently in combinational logic during each single clock cycle",
+            "cards": [
+                ("Stage 1 & 2: Fetch and Decode", "1. Instruction Fetch (IF):\n   • PC points to current instruction in Instruction Memory\n   • PC+4 adder prepares sequential next address\n2. Instruction Decode (ID):\n   • Control Unit decodes 7-bit opcode\n   • Register File reads rs1 and rs2 combinationally\n   • Immediate Generator reconstructs 32-bit sign-extended constant"),
+                ("Stage 3, 4 & 5: Execute, Memory, Write-Back", "3. Execute (EX):\n   • ALU executes arithmetic/logic operation\n   • Calculates Zero flag and branch target (PC + imm)\n4. Memory Access (MEM):\n   • Data RAM loads (lw) or stores (sw)\n5. Write-Back (WB):\n   • Multiplexer selects ALU result, memory data, or PC+4 into register rd")
+            ]
+        },
+        {
+            "category": "SUB-MODULE DESIGN",
+            "title": "Program Counter & Instruction Memory",
+            "subtitle": "Instruction address sequencing and memory fetch hardware",
+            "cards": [
+                ("Program Counter (pc.v)", "• 32-bit sequential register updating on posedge clk\n• Asynchronous active-high reset initializing PC to 0x00000000\n• Non-blocking assignment (<=) ensures race-free flip-flop synthesis\n• Latches either PC+4 or branch/jump target address"),
+                ("Instruction Memory (instruction_mem.v)", "• 64-word deep ROM holding 32-bit RISC-V instructions\n• Asynchronous read: assign instr = memory[pc[7:2]];\n• pc[7:2] divides byte address by 4 for word index\n• Supports dynamic hex program loading via $readmemh")
+            ]
+        },
+        {
+            "category": "SUB-MODULE DESIGN",
+            "title": "Register File & Immediate Generator",
+            "subtitle": "Dual-read register storage and sign-extending immediate reconstruction",
+            "cards": [
+                ("Register File (reg_file.v)", "• 32 registers x 32 bits wide\n• Two combinational read ports (rd_data1, rd_data2)\n• One synchronous write port triggered on posedge clk when reg_write=1\n• Hardwired x0: Reads always return 0, writes to x0 are ignored"),
+                ("Immediate Generator (imm_gen.v)", "• Reconstructs scattered immediate bit slices based on opcode\n• Performs 32-bit sign extension: {{20{instr[31]}}, ...}\n• Formats handled: I-type (addi, lw), S-type (sw), B-type (beq), J-type (jal)")
+            ]
+        },
+        {
+            "category": "SUB-MODULE DESIGN",
+            "title": "Arithmetic Logic Unit & ALU Control",
+            "subtitle": "Core computing engine and hierarchical operation decoding",
+            "cards": [
+                ("ALU (alu.v)", "• Computes: ADD, SUB, AND, OR, XOR, SLT, Shift Left, Shift Right\n• Zero Flag: assign zero = (result == 32'b0);\n  Essential for conditional branch evaluation (BEQ)"),
+                ("ALU Control (alu_control.v)", "• Multi-level decoding: Main Control sets 2-bit alu_op\n• Secondary decoder checks funct3 and funct7[5]\n• Minimizes combinational gate delay across the control path")
+            ]
+        },
+        {
+            "category": "SUB-MODULE DESIGN",
+            "title": "Main Control Unit & Data Memory",
+            "subtitle": "Central traffic controller and data storage RAM",
+            "cards": [
+                ("Main Control Unit (control_unit.v)", "• Decodes opcode[6:0] into 8 control signals:\n  - RegWrite: enables register destination write\n  - ALUSrc: selects Register 2 vs Immediate\n  - MemRead / MemWrite: enables RAM read/write\n  - MemToReg: selects writeback source\n  - Branch / Jump: branch and jump enables"),
+                ("Data Memory (data_mem.v)", "• 64 words (256 bytes) RAM addressed by addr[7:2]\n• Asynchronous combinational read on mem_read=1\n• Synchronous write on posedge clk when mem_write=1")
+            ]
+        },
+        {
+            "category": "TOP CORE INTEGRATION",
+            "title": "Top Datapath Multiplexers (riscv_core.v)",
+            "subtitle": "Integrating all sub-modules into a unified operational CPU",
+            "cards": [
+                ("Branch and Jump Multiplexing", "• Branch Target: branch_target = pc_current + imm_out;\n• Branch Taken: pc_branch_taken = branch & alu_zero;\n• Next PC MUX: pc_next = (jump || pc_branch_taken) ? branch_target : pc_plus_4;"),
+                ("Operand & Write-Back Multiplexing", "• ALU Operand B MUX: alu_operand_b = alu_src ? imm_out : rd_data2;\n• Write-Back MUX: mem_to_reg selects between ALU result (00), Data RAM read (01), or PC+4 (10)")
+            ]
+        },
+        {
+            "category": "SIMULATION & VERIFICATION",
+            "title": "Automated 11-Instruction Testbench (tb_riscv.v)",
+            "subtitle": "Self-checking testbench executed in Icarus Verilog",
+            "cards": [
+                ("Test Program Sequence", "• PC 0x00: addi x1, x0, 15  -> x1 = 15\n• PC 0x04: addi x2, x0, 25  -> x2 = 25\n• PC 0x08: add  x3, x1, x2  -> x3 = 40\n• PC 0x0C: sub  x4, x2, x1  -> x4 = 10\n• PC 0x10: and  x5, x1, x2  -> x5 = 9\n• PC 0x14: or   x6, x1, x2  -> x6 = 31\n• PC 0x18: sw   x3, 4(x0)   -> Mem[4] = 40\n• PC 0x1C: lw   x7, 4(x0)   -> x7 = 40"),
+                ("Branch Verification & Result", "• PC 0x20: beq x3, x7, 8   -> Condition TRUE!\n• PC 0x24: addi x8, x0, 99 -> SKIPPED (x8 stays 0)\n• PC 0x28: addi x9, x0, 42 -> TARGET REACHED (x9 = 42)\n\n>>> SUCCESS! ALL INSTRUCTIONS VERIFIED <<<")
+            ]
+        },
+        {
+            "category": "DEMONSTRATION TOOL",
+            "title": "Interactive Demonstrator CLI (run_interactive.py)",
+            "subtitle": "Real-time user input assembly and hardware simulation tool",
+            "cards": [
+                ("Interactive Features", "• Accepts user input numbers and operations in terminal\n• Supports ADD, SUB, AND, OR, XOR, SLT\n• Assembles machine code dynamically and generates sim/instructions.hex\n• Runs Icarus Verilog simulation and captures hardware telemetry"),
+                ("Educational Breakdown Displayed", "• Decodes instruction into funct7, rs2, rs1, funct3, rd, opcode\n• Explains the 5-stage physical signal journey\n• Prints cycle-by-cycle internal Verilog signals\n• Displays final register values in decimal and hexadecimal")
+            ]
+        },
+        {
+            "category": "VIVA VOCE PREPARATION",
+            "title": "Professor Defense Guide: Key Viva Questions",
+            "subtitle": "Authoritative answers for oral examination and project presentation",
+            "cards": [
+                ("Architecture & Critical Path", "• Q: What is the critical path?\n  A: Load Word (lw). It must traverse Fetch -> Reg Read -> ALU -> Data RAM -> WB Mux -> Reg Write. Clock period must accommodate this.\n• Q: Why is it called single-cycle?\n  A: Every instruction completes in exactly 1 clock cycle (CPI = 1)."),
+                ("Hardware Decisions", "• Q: Why is x0 hardwired to 0?\n  A: Enables compact pseudo-instructions like nop (addi x0, x0, 0) and mv (addi rd, rs, 0) without extra silicon.\n• Q: Why use non-blocking assignments (<=)?\n  A: Models concurrent hardware flip-flop updates and prevents simulation race conditions.")
+            ]
+        },
+        {
+            "category": "CONCLUSION",
+            "title": "Conclusion & Future Research Roadmap",
+            "subtitle": "Summary of achievements and architecture expansion roadmap",
+            "cards": [
+                ("Key Outcomes", "• Designed and verified synthesizable RV32I single-cycle processor core\n• Successfully verified all arithmetic, logic, load, store, and branch instructions\n• Created automated testbenches and live interactive CLI demonstrator tool"),
+                ("Future Enhancements", "• 5-Stage Pipelining (IF, ID, EX, MEM, WB) with Hazard Detection\n• Data forwarding units to eliminate stalls\n• RV32M Extension: Hardware Multiplier and Divider\n• L1 Instruction and Data Caches")
+            ]
+        }
+    ]
+
+    for slide_info in slides_data:
+        slide = prs.slides.add_slide(blank_layout)
+
+        # Background color
+        background = slide.background
+        fill = background.fill
+        fill.solid()
+        fill.fore_color.rgb = BG_DARK
+
+        # Top border line
+        line = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(13.333), Inches(0.08))
+        line.fill.solid()
+        line.fill.fore_color.rgb = ACCENT_CYAN
+        line.line.color.rgb = ACCENT_CYAN
+
+        # Category pill
+        cat_box = slide.shapes.add_textbox(Inches(0.8), Inches(0.5), Inches(5), Inches(0.4))
+        tf = cat_box.text_frame
+        p = tf.paragraphs[0]
+        p.text = slide_info["category"]
+        p.font.size = Pt(11)
+        p.font.bold = True
+        p.font.color.rgb = ACCENT_CYAN
+
+        # Title
+        title_box = slide.shapes.add_textbox(Inches(0.8), Inches(0.85), Inches(11.7), Inches(0.9))
+        tf = title_box.text_frame
+        tf.word_wrap = True
+        p = tf.paragraphs[0]
+        p.text = slide_info["title"]
+        p.font.size = Pt(26)
+        p.font.bold = True
+        p.font.color.rgb = TEXT_LIGHT
+
+        # Subtitle
+        sub_box = slide.shapes.add_textbox(Inches(0.8), Inches(1.7), Inches(11.7), Inches(0.5))
+        tf = sub_box.text_frame
+        p = tf.paragraphs[0]
+        p.text = slide_info["subtitle"]
+        p.font.size = Pt(13)
+        p.font.color.rgb = TEXT_MUTED
+
+        # Cards
+        cards = slide_info["cards"]
+        if len(cards) == 2:
+            card_w = Inches(5.6)
+            for i, (c_title, c_text) in enumerate(cards):
+                left = Inches(0.8 + i * 6.0)
+                card_shape = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, left, Inches(2.4), card_w, Inches(4.3))
+                card_shape.fill.solid()
+                card_shape.fill.fore_color.rgb = CARD_BG
+                card_shape.line.color.rgb = RGBColor(30, 58, 138)
+
+                tb = slide.shapes.add_textbox(left + Inches(0.25), Inches(2.55), card_w - Inches(0.5), Inches(3.9))
+                tf = tb.text_frame
+                tf.word_wrap = True
+                p_head = tf.paragraphs[0]
+                p_head.text = c_title
+                p_head.font.size = Pt(17)
+                p_head.font.bold = True
+                p_head.font.color.rgb = ACCENT_CYAN
+
+                p_body = tf.add_paragraph()
+                p_body.text = c_text
+                p_body.font.size = Pt(12)
+                p_body.font.color.rgb = TEXT_LIGHT
+                p_body.space_before = Pt(10)
+
+        # Footer
+        footer_box = slide.shapes.add_textbox(Inches(0.8), Inches(6.85), Inches(11.7), Inches(0.4))
+        tf = footer_box.text_frame
+        p = tf.paragraphs[0]
+        p.text = "RISC-V RV32I Single-Cycle Processor  |  Prince Raj  |  Verilog HDL & Icarus Verilog"
+        p.font.size = Pt(10)
+        p.font.color.rgb = TEXT_MUTED
+
+    prs.save("RISCV_Single_Cycle_Processor_Presentation.pptx")
+    print("✓ Created RISCV_Single_Cycle_Processor_Presentation.pptx")
+
+if __name__ == "__main__":
+    build_html_presentation()
+    generate_pdf_via_chrome()
+    generate_pptx()

@@ -92,4 +92,4 @@ vvp sim/riscv_sim
 | **Why is `x0` hardwired to 0?** | In RISC-V RV32I specification, register `x0` always reads 0 and ignores writes. This simplifies pseudo-instructions like `mv rd, rs` (`addi rd, rs, 0`) and `nop` (`addi x0, x0, 0`). |
 | **Why use separate ALU Control?** | Multi-level decoding keeps the Main Control Unit fast and compact by only reading the 7-bit opcode, offloading `funct3` and `funct7` decoding to a smaller secondary block. |
 | **How does branch decision work?** | In the Execute stage, the ALU computes $rs1 - rs2$. If zero, the Zero flag goes high. The next PC MUX selects $PC + \text{immediate}$ instead of $PC + 4$. |
-# coa
+
